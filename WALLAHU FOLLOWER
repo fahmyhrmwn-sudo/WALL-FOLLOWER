@@ -1,0 +1,154 @@
+// Sensor ultrasonik
+#define trigPin1 A0   // kiri
+#define echoPin1 A1
+#define trigPin2 A2   // depan
+#define echoPin2 A3
+#define trigPin3 A4   // kanan
+#define echoPin3 A5
+
+// Motor kiri
+#define ENA 5
+#define IN1 3
+#define IN2 4
+
+// Motor kanan
+#define ENB 6
+#define IN3 2
+#define IN4 7
+
+long distance1, distance2, distance3;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(trigPin1, OUTPUT);
+  pinMode(echoPin1, INPUT);
+  pinMode(trigPin2, OUTPUT);
+  pinMode(echoPin2, INPUT);
+  pinMode(trigPin3, OUTPUT);
+  pinMode(echoPin3, INPUT);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  analogWrite(ENA, 87.5);
+  analogWrite(ENB, 87.5);
+}
+
+// Fungsi baca sensor
+long bacaJarak(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long durasi = pulseIn(echoPin, HIGH);
+  return (durasi / 2) / 29.1;
+}
+
+// Gerakan motor
+void maju() {
+  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
+}
+
+void mundur() {
+  digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
+}
+
+void belokKiri() {
+  digitalWrite(IN1, LOW); digitalWrite(IN2, LOW);  // kiri mati
+  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW); // kanan maju
+}
+
+void belokKanan() {
+  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW); // kiri maju
+  digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);  // kanan mati
+}
+
+void stopMotor() {
+  digitalWrite(IN1, LOW); digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);
+}
+
+void loop() {
+
+  // Baca sensor
+  distance1 = bacaJarak(trigPin1, echoPin1); // kiri
+  distance2 = bacaJarak(trigPin2, echoPin2); // depan
+  distance3 = bacaJarak(trigPin3, echoPin3); // kanan
+
+  Serial.print(distance1); Serial.print("  ");
+  Serial.print(distance2); Serial.print("  ");
+  Serial.println(distance3);
+
+  // ------------------------------------
+  //     KASUS TERKURUNG (DEPAN + KIRI + KANAN SEMPIT)
+  // ------------------------------------
+  if (distance1 < 35 && distance2 < 35 && distance3 < 35) {
+    stopMotor();
+    delay(300);
+
+    // MUNDUR untuk membuka jalan
+    mundur();
+    delay(600);
+    stopMotor();
+    delay(300);
+
+    // Cari jalan paling kosong
+    if (distance1 > distance3) {
+      belokKiri();
+      delay(450);
+    } else {
+      belokKanan();
+      delay(450);
+    }
+    return;
+  }
+
+  // ------------------------------------
+  //              LOGIKA STOP
+  // ------------------------------------
+  if (distance2 < 35) {
+    stopMotor();
+    delay(400);
+
+    // pilih arah kosong
+    if (distance1 > distance3) {
+      belokKiri();
+      delay(350);
+    } else {
+      belokKanan();
+      delay(350);
+    }
+    return;
+  }
+
+  // ------------------------------------
+  //     LOGIKA NORMAL WALL FOLLOWER
+  // ------------------------------------
+
+  // Tidak ada tembok
+  if (distance1 > 30 && distance3 > 30) {
+    maju();
+  }
+  // Terlalu dekat tembok kiri â†’ geser ke kanan
+  else if (distance1 < 35) {
+    belokKanan();
+  }
+  // Terlalu dekat tembok kanan â†’ geser ke kiri
+  else if (distance3 < 35) {
+    belokKiri();
+  }
+  // Ideal â†’ maju
+  else {
+    maju();
+  }
+}
